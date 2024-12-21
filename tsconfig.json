@@ -6,7 +6,7 @@
     "preserveConstEnums": true,
     "sourceMap": false,
     "outDir": "dist",
-    "target": "ES2015"
+    "target": "ES2020"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "**/*.spec.ts", "src/scripts/**/*"]
