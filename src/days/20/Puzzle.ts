@@ -6,9 +6,7 @@ enum GridValue {
 }
 
 type Grid = GridValue[][];
-// Maps cheat picos to cost
-type Cost = Record<number, number> | null;
-type Costs = Cost[][]
+type Costs = (number | null)[][];
 type Vector = [number, number];
 
 const parseInput = (input: string) =>
@@ -23,91 +21,103 @@ const findGridValue = (grid: Grid, value: GridValue): Vector | null => {
   return null;
 };
 
-const adjecent = (vector: Vector, d?: number): Vector[] =>
+const adjecent = (vector: Vector): Vector[] =>
   [
     [-1, 0],
     [0, 1],
     [1, 0],
     [0, -1],
-  ].map(([a, b]) => [a * (d ?? 1) + vector[0], b * (d ?? 1) + vector[1]]);
+  ].map(([a, b]) => [a + vector[0], b + vector[1]]);
 
-const propegateCosts = (grid: Grid, cheat: number): Costs => {
-  const costs: Costs = [...Array(grid.length)].map(() =>
+const propegateCosts = (grid: Grid): Costs => {
+  const costs: (number | null)[][] = [...Array(grid.length)].map(() =>
     [...Array(grid[0].length)].map(() => null)
   );
   const end = findGridValue(grid, GridValue.End);
 
-  costs[end[0]][end[1]] = { cost: 0, cheat: 0 };
-  adjecent(end).map(a => propegateCostsFromAdjecent(grid, costs, a, cheat));
+  costs[end[0]][end[1]] = 0;
+  adjecent(end).map((a) => propegateCostsAdjecent(grid, costs, a));
 
   return costs;
 };
 
-const propegateCostsFromAdjecent = (grid: Grid, costs: Costs, position: Vector, cheat: number) => {
+const propegateCostsAdjecent = (grid: Grid, costs: Costs, position: Vector) => {
   const value = grid[position[0]]?.[position[1]];
-  if (value == null) return;
+  if (value == null || value === GridValue.Wall) return;
 
   const neighbours = adjecent(position);
   const currentCost = costs[position[0]]?.[position[1]];
 
-  // If a wall, take into account cheat picos
-  if (value === GridValue.Wall) {
-    let foundImprovement = false;
-    let improved = {...currentCost};
-    for (const neighbour of neighbours) {
-      const neighbourCost = costs[neighbour[0]]?.[neighbour[1]];
-      if (neighbourCost == null) continue;
+  const newCost = neighbours.reduce(
+    (acc, [a, b]) => {
+      const neighbourCost = costs[a]?.[b];
+      if (neighbourCost == null) return acc;
+      return acc == null || neighbourCost + 1 < acc ? neighbourCost + 1 : acc;
+    },
+    null as number | null
+  );
 
-      for (const cheat in neighbourCost) {
-        const costWithCheat = neighbourCost[+cheat];
-        if ()
-        const currentCostWith cheat
+  if (newCost == null || newCost >= (currentCost ?? Infinity)) return;
+  costs[position[0]][position[1]] = newCost;
 
-        foundImprovement = true;
-      }
-    }
-
-    if (!foundImprovement) return;
-    
-  adjecent(position).map(a => propegateCostsFromAdjecent(grid, costs, a, cheat));
-  }
-
-  // Must be a regular square now
-  const newCost = adjecent(position).reduce((acc, a) => {
-    const cost = costs[a[0]]?.[a[1]]?.[0];
-    if (cost == null) return acc;
-    return acc == null || (cost + 1) < acc ? cost + 1 : acc;
-  }, null as number | null);
-
-  // Catch no improvement case
-  if (newCost === null || newCost >= (currentCost[0] ?? Infinity)) return;
-
-  costs[position[0]][position[1]] = { 0: newCost };
-  adjecent(position).map(a => propegateCostsFromAdjecent(grid, costs, a, cheat));
+  neighbours.map((a) => propegateCostsAdjecent(grid, costs, a));
 };
 
-const findCheatCount = (grid: Grid, costs: Costs, gain: number) => {
+const findCheatCount = (
+  grid: Grid,
+  costs: Costs,
+  gain: number,
+  range: number
+) => {
   let count = 0;
 
   for (let row = 0; row < grid.length; row++) {
     for (let column = 0; column < grid[row].length; column++) {
       const value = grid[row][column];
       if (value == null || value === GridValue.Wall) continue;
-      const cost = costs[row][column];
 
-      // Check delta, if large enough there must be a wall anyways
-      for (const [a, b] of adjecent([row, column], 2)) {
-        const adjecentCost = costs[a]?.[b];
-        if (adjecentCost == null) continue;
-        const delta = costs[a][b] - cost - 2;
-        if (delta >= gain) count++;
-      }
+      const cost = costs[row][column];
+      count += countImprovementsInRange(
+        [row, column],
+        costs,
+        cost,
+        gain,
+        range
+      );
     }
   }
 
   return count;
 };
 
+const countImprovementsInRange = (
+  [row, column]: Vector,
+  costs: Costs,
+  cost: number,
+  gain: number,
+  range: number
+) => {
+  let count = 0;
+
+  for (let dRow = -range; dRow <= range; dRow++) {
+    const dRowAbsolute = Math.abs(dRow);
+    const leftoverRange = range - dRowAbsolute;
+
+    for (let dColumn = -leftoverRange; dColumn <= leftoverRange; dColumn++) {
+      const targetCost = costs[row + dRow]?.[column + dColumn];
+      const dColumnAbsolute = Math.abs(dColumn);
+      const distance = dRowAbsolute + dColumnAbsolute;
+
+      if (targetCost == null) continue;
+
+      const costWithCheat = targetCost + distance;
+
+      if (cost - costWithCheat >= gain) count++;
+    }
+  }
+
+  return count;
+};
 
 // Different for test and actual
 const minSavings = 20;
@@ -116,17 +126,25 @@ const minSavings = 20;
 const first = (input: string) => {
   const grid = parseInput(input);
 
-  const costs = propegateCosts(grid, 2);
+  const costs = propegateCosts(grid);
 
-  return findCheatCount(grid, costs, minSavings);
+  return findCheatCount(grid, costs, minSavings, 2);
 };
 
 const expectedFirstSolution = 5;
 
+// Different for test and actual
+const minSavings2 = 50;
+// const minSavings2 = 100;
+
 const second = (input: string) => {
-  return 'solution 2';
+  const grid = parseInput(input);
+
+  const costs = propegateCosts(grid);
+
+  return findCheatCount(grid, costs, minSavings2, 20);
 };
 
-const expectedSecondSolution = 'solution 2';
+const expectedSecondSolution = 285;
 
 export { first, expectedFirstSolution, second, expectedSecondSolution };
