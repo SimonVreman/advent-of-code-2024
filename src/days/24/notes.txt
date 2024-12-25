@@ -1,0 +1,40 @@
+x0 x1 x2
+y0 y1 y2
+   c0 c0
+      c1
+z0 z1 z2 z3 z4 z5
+
+111
+111
+ 111
+
+0111
+
+010
+111
+ 011
+
+1001
+
+# Ex.
+# kvj is previous carry
+# htw is resulting carry
+# rtg, bhq, wkc are intermediaries
+# we name the operations:
+
+# input AND
+y01 AND x01 -> rtg
+# input XOR
+y01 XOR x01 -> bhq
+# inter AND
+kvj AND bhq -> wkc
+# carry OR
+rtg OR wkc -> htw
+# result XOR
+bhq XOR kvj -> z01
+
+z0 = x0 ^ y0
+carry0 = x0 & y0
+
+z1 = (x1 ^ y1) ^ carry0
+carry1 = (x1 & y1) | (carry0 & (x1 ^ y1))
