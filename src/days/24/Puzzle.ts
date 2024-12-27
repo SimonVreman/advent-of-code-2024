@@ -174,8 +174,6 @@ const second = (input: string) => {
 
   const incorrect = findIncorrect2(changes);
 
-  console.log(incorrect);
-
   return incorrect
     .map(({ output }) => output)
     .sort()
